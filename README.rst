@@ -1,5 +1,11 @@
 .. _blinky-sample:
 
+BME 590 Lab 8
+######
+This repository holds code for BME 590: Medical Electrical Equipment at Duke University.
+This code is adapted from Lab 7. This code uses the Blinky sample code from Nordic.
+Documentation for that code and how to run it is shown below.
+
 Blinky
 ######
 
