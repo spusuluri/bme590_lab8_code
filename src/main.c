@@ -15,7 +15,7 @@
 LOG_MODULE_REGISTER(Lab8_Satya, LOG_LEVEL_DBG);
 
 #define SLEEP_TIME_MS   1000 /* Make sure to delete this*/
-#define LED_ON_TIME_S
+#define LED_ON_TIME_S 1
 #define HEARTBEAT_PERIOD_MS 1000
 
 /*LEDs*/
@@ -41,12 +41,22 @@ static struct gpio_callback freq_up_cb;
 static struct gpio_callback freq_down_cb;
 static struct gpio_callback reset_cb;
 
-/*
-static struct variable_led_info buzzer_led_state = 0;
-static struct variable_led_info ivdrip_led_state = 0;
-static struct variable_led_info alarm_led_state = 0;
-static struct variable_led_info led_freq = LED_ON_TIME_S;
-*/
+/* Structure with Variable LED Info*/
+
+struct led_state_n_info{
+	bool led1;
+	bool led2;
+	bool led3;
+	int freq;
+};
+
+struct led_state_n_info led_states;
+struct led_states.led1 = 1;
+struct led_states.led2 = 1;
+struct led_states.led3 = 1;
+struct led_states.freq = LED_ON_TIME_S;
+
+
 
 /* Declarations*/
 int setup_channels_and_pins(void);
@@ -65,7 +75,7 @@ void sleep_callback(const struct device *dev, struct gpio_callback *cb, uint32_t
 }
 void freq_up_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
-	LOG_DBG("Freq Up button pressed.");
+	LOG_DBG("Freq Up button pressed."); /* K_TIMER_START*/
 	freq_up_detected = 1;
 }
 void freq_down_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
