@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "C/C++: gcc build and debug active file",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${fileDirname}/${fileBasenameNoExtension}",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb",
+            "preLaunchTask": "C/C++: gcc build active file"
+        },
+        {
+            "type": "nrf-connect",
+            "request": "launch",
+            "name": "Launch build",
+            "config": "${workspaceFolder}/build",
+            "runToEntryPoint": "main"
+        }
+    ],
+    "version": "2.0.0"
+}

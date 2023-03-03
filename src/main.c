@@ -1,8 +1,5 @@
 /*
  *So What needs to be done? 
- *1. Write function that will explicitly change the states of the variable LEDs
- *2. Write a struct that will hold the variables
- *3. Write the timer code for the variable leds
  *4. Write code for the reset and sleep states
  *5. We need to write the code for freq_up, freq_down callbacks 
  *and adding or subtracing the frequency away? 
@@ -12,11 +9,14 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
 
-LOG_MODULE_REGISTER(Lab8_Satya, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(Lab8_Satya_FIX, LOG_LEVEL_DBG);
 
-#define SLEEP_TIME_MS   1000 /* Make sure to delete this*/
 #define LED_ON_TIME_S 1
 #define HEARTBEAT_PERIOD_MS 1000
+#define DEC_ON_TIME_S 0.1
+#define INC_ON_TIME_S 0.1
+#define LED_MAX_ON_TIME_MS 2000
+#define LED_MIN_ON_TIME_MS 100
 
 /*LEDs*/
 static const struct gpio_dt_spec heartbeat_led = GPIO_DT_SPEC_GET(DT_ALIAS(heartbeat), gpios);
@@ -32,8 +32,6 @@ static const struct gpio_dt_spec freq_down = GPIO_DT_SPEC_GET(DT_ALIAS(button2),
 static const struct gpio_dt_spec reset = GPIO_DT_SPEC_GET(DT_ALIAS(button3), gpios);
 
 static bool sleep_detected = 0;
-static bool freq_up_detected = 0;
-static bool freq_down_detected = 0;
 static bool reset_detected = 0;
 
 static struct gpio_callback sleep_cb;
@@ -44,18 +42,18 @@ static struct gpio_callback reset_cb;
 /* Structure with Variable LED Info*/
 
 struct led_state_n_info{
-	bool led1;
-	bool led2;
-	bool led3;
+	bool buzzer_state;
+	bool ivdrip_state;
+	bool alarm_state;
 	int freq;
 };
 
-struct led_state_n_info led_states;
-struct led_states.led1 = 1;
-struct led_states.led2 = 1;
-struct led_states.led3 = 1;
-struct led_states.freq = LED_ON_TIME_S;
-
+struct led_state_n_info var_led_states = {
+    .buzzer_state = 1,
+    .ivdrip_state = 0,
+    .alarm_state = 0,
+    .freq = LED_ON_TIME_S * 1000
+};
 
 
 /* Declarations*/
@@ -66,6 +64,13 @@ void freq_up_callback(const struct device *dev, struct gpio_callback *cb, uint32
 void freq_down_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
 void reset_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
 void heartbeat_toggle(struct k_timer *heartbeat_timer);
+void var_led_toggle(struct k_timer *var_led_timer);
+void var_led_stop(struct k_timer *var_led_timer);
+
+/* Timers*/
+/*Timers*/
+K_TIMER_DEFINE(heartbeat_timer, heartbeat_toggle, NULL);
+K_TIMER_DEFINE(var_led_timer, var_led_toggle, var_led_stop);
 
 /*Callbacks*/
 void sleep_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
@@ -75,13 +80,15 @@ void sleep_callback(const struct device *dev, struct gpio_callback *cb, uint32_t
 }
 void freq_up_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
-	LOG_DBG("Freq Up button pressed."); /* K_TIMER_START*/
-	freq_up_detected = 1;
+	LOG_DBG("Freq Up button pressed.");
+	var_led_states.freq = var_led_states.freq - (1000 * DEC_ON_TIME_S);
+	k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
 }
 void freq_down_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	LOG_DBG("Freq down button pressed.");
-	freq_down_detected = 1;
+	var_led_states.freq = var_led_states.freq + (1000 * INC_ON_TIME_S);
+	k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
 }
 void reset_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
@@ -89,12 +96,40 @@ void reset_callback(const struct device *dev, struct gpio_callback *cb, uint32_t
 	reset_detected = 1;
 }
 
-/*Timers*/
-K_TIMER_DEFINE(heartbeat_timer, heartbeat_toggle, NULL);
-
 void heartbeat_toggle(struct k_timer *heartbeat_timer){
 	gpio_pin_toggle_dt(&heartbeat_led);
 	LOG_DBG("Heartbeat");
+}
+void var_led_toggle(struct k_timer *var_led_timer){
+	if (var_led_states.buzzer_state){
+		LOG_DBG("Buzzer LED On");
+		gpio_pin_set_dt(&buzzer_led, var_led_states.buzzer_state);
+		gpio_pin_set_dt(&ivdrip_led, var_led_states.ivdrip_state);
+		gpio_pin_set_dt(&alarm_led,var_led_states.alarm_state);
+		var_led_states.buzzer_state = 0;
+		var_led_states.ivdrip_state = 1;
+	}
+	else if (var_led_states.ivdrip_state){
+		LOG_DBG("IV Drip LED On");
+		gpio_pin_set_dt(&buzzer_led, var_led_states.buzzer_state);
+		gpio_pin_set_dt(&ivdrip_led, var_led_states.ivdrip_state);
+		gpio_pin_set_dt(&alarm_led,var_led_states.alarm_state);
+		var_led_states.ivdrip_state = 0;
+		var_led_states.alarm_state = 1;	
+	}
+	else if (var_led_states.alarm_state){
+		LOG_DBG("Alarm LED On");
+		gpio_pin_set_dt(&buzzer_led, var_led_states.buzzer_state);
+		gpio_pin_set_dt(&ivdrip_led, var_led_states.ivdrip_state);
+		gpio_pin_set_dt(&alarm_led,var_led_states.alarm_state);
+		var_led_states.alarm_state = 0;
+		var_led_states.buzzer_state = 1;
+	}
+}
+void var_led_stop(struct k_timer *var_led_timer){
+	gpio_pin_set_dt(&buzzer_led, 0);
+	gpio_pin_set_dt(&ivdrip_led, 0);
+	gpio_pin_set_dt(&alarm_led, 0);
 }
 
 void main(void)
@@ -144,30 +179,21 @@ void main(void)
 	gpio_init_callback(&reset_cb, reset_callback, BIT(reset.pin));
 	gpio_add_callback(reset.port, &reset_cb);
 
-	/* Start indefinite timer*/
+	/* Start timers*/
 	k_timer_start(&heartbeat_timer, K_MSEC(HEARTBEAT_PERIOD_MS), K_MSEC(HEARTBEAT_PERIOD_MS));
+	k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
 
 	while (1) {
+		if (var_led_states.freq > LED_MAX_ON_TIME_MS || var_led_states.freq < LED_MIN_ON_TIME_MS){
+			k_timer_stop(&var_led_timer);
+		}
 		if (sleep_detected){
 			sleep_detected = 0;
 		}
-		if (freq_up_detected){
-			freq_up_detected = 0;
-		}
-		if (freq_down_detected){
-			freq_down_detected=0;
-		}
 		if (reset_detected){
-			reset_detected = 0;
+			var_led_states.freq = LED_ON_TIME_S * 1000;
+			k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
 		}
-		gpio_pin_toggle_dt(&ivdrip_led);
-		/*
-		ret = gpio_pin_toggle_dt(&buzzer_led);
-		ret = gpio_pin_toggle_dt(&ivdrip_led);
-		ret = gpio_pin_toggle_dt(&alarm_led);
-		*/
-		LOG_DBG("IV Drip LED is blinking!");
-		k_msleep(SLEEP_TIME_MS);
 	}
 }
 int setup_channels_and_pins(void){
