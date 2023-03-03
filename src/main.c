@@ -6,7 +6,9 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/logging/log.h>
 
+LOG_MODULE_REGISTER(Lab8_Satya, LOG_LEVEL_DBG);
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS   1000
 
@@ -34,6 +36,7 @@ void main(void)
 
 	while (1) {
 		ret = gpio_pin_toggle_dt(&led);
+		LOG_INF("Heartbeat");
 		if (ret < 0) {
 			return;
 		}
