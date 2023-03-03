@@ -227,5 +227,10 @@ int check_interfaces_ready(void){
 		LOG_ERR("gpio0 interface not ready.");
 		return -1;
 	}
+	/* This should check for the entire gpio1 interface*/
+	if (!device_is_ready(error_led.port)) {
+		LOG_ERR("gpio1 interface not ready.");
+		return -1;
+	}
 	return 0;	
 }
