@@ -1,7 +1,11 @@
 /*
- * Copyright (c) 2016 Intel Corporation
- *
- * SPDX-License-Identifier: Apache-2.0
+ *So What needs to be done? 
+ *1. Write function that will explicitly change the states of the variable LEDs
+ *2. Write a struct that will hold the variables
+ *3. Write the timer code for the variable leds
+ *4. Write code for the reset and sleep states
+ *5. We need to write the code for freq_up, freq_down callbacks 
+ *and adding or subtracing the frequency away? 
  */
 
 #include <zephyr/kernel.h>
@@ -10,7 +14,8 @@
 
 LOG_MODULE_REGISTER(Lab8_Satya, LOG_LEVEL_DBG);
 
-#define SLEEP_TIME_MS   1000
+#define SLEEP_TIME_MS   1000 /* Make sure to delete this*/
+#define LED_ON_TIME_S
 #define HEARTBEAT_PERIOD_MS 1000
 
 /*LEDs*/
@@ -35,6 +40,13 @@ static struct gpio_callback sleep_cb;
 static struct gpio_callback freq_up_cb;
 static struct gpio_callback freq_down_cb;
 static struct gpio_callback reset_cb;
+
+/*
+static struct variable_led_info buzzer_led_state = 0;
+static struct variable_led_info ivdrip_led_state = 0;
+static struct variable_led_info alarm_led_state = 0;
+static struct variable_led_info led_freq = LED_ON_TIME_S;
+*/
 
 /* Declarations*/
 int setup_channels_and_pins(void);
@@ -138,14 +150,13 @@ void main(void)
 		if (reset_detected){
 			reset_detected = 0;
 		}
-		gpio_pin_toggle_dt(&error_led);
+		gpio_pin_toggle_dt(&ivdrip_led);
 		/*
-		ret = gpio_pin_toggle_dt(&heartbeat_led);
 		ret = gpio_pin_toggle_dt(&buzzer_led);
 		ret = gpio_pin_toggle_dt(&ivdrip_led);
 		ret = gpio_pin_toggle_dt(&alarm_led);
 		*/
-		LOG_DBG("Error LED is blinking!");
+		LOG_DBG("IV Drip LED is blinking!");
 		k_msleep(SLEEP_TIME_MS);
 	}
 }
