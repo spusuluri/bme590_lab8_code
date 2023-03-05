@@ -1,8 +1,6 @@
 /*
  *So What needs to be done? 
- *4. Write code for the reset and sleep states
- *5. We need to write the code for freq_up, freq_down callbacks 
- *and adding or subtracing the frequency away? 
+ * Sleep State stuff needs to be fixed
  */
 
 #include <zephyr/kernel.h>
@@ -32,6 +30,7 @@ static const struct gpio_dt_spec freq_down = GPIO_DT_SPEC_GET(DT_ALIAS(button2),
 static const struct gpio_dt_spec reset = GPIO_DT_SPEC_GET(DT_ALIAS(button3), gpios);
 
 static bool sleep_detected = 0;
+static bool sleep_state = 0;
 static bool reset_detected = 0;
 
 static struct gpio_callback sleep_cb;
@@ -67,7 +66,6 @@ void heartbeat_toggle(struct k_timer *heartbeat_timer);
 void var_led_toggle(struct k_timer *var_led_timer);
 void var_led_stop(struct k_timer *var_led_timer);
 
-/* Timers*/
 /*Timers*/
 K_TIMER_DEFINE(heartbeat_timer, heartbeat_toggle, NULL);
 K_TIMER_DEFINE(var_led_timer, var_led_toggle, var_led_stop);
@@ -192,8 +190,15 @@ void main(void)
 			k_timer_stop(&var_led_timer);
 			gpio_pin_set_dt(&error_led, 1);
 		}
-		if (sleep_detected){
+		if (sleep_detected && !sleep_state){
+			k_timer_stop(&var_led_timer);
 			sleep_detected = 0;
+			sleep_state = 1;
+		}
+		if (sleep_detected && sleep_state){
+			k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
+			sleep_detected=0;
+			sleep_state = 0;
 		}
 		if (reset_detected){
 			var_led_states.freq = LED_ON_TIME_S * 1000;
