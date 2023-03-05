@@ -193,6 +193,7 @@ void main(void)
 		if (reset_detected){
 			var_led_states.freq = LED_ON_TIME_S * 1000;
 			k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
+			reset_detected=0;
 		}
 	}
 }
