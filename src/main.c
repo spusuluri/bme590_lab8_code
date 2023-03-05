@@ -1,8 +1,3 @@
-/*
- *So What needs to be done? 
- * Sleep State stuff needs to be fixed
- */
-
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
@@ -15,6 +10,7 @@ LOG_MODULE_REGISTER(Lab8_Satya, LOG_LEVEL_DBG);
 #define INC_ON_TIME_S 0.1
 #define LED_MAX_ON_TIME_MS 2000
 #define LED_MIN_ON_TIME_MS 100
+#define S_TO_MS_TIME_CONV 1000
 
 /*LEDs*/
 static const struct gpio_dt_spec heartbeat_led = GPIO_DT_SPEC_GET(DT_ALIAS(heartbeat), gpios);
@@ -51,7 +47,7 @@ struct led_state_n_info var_led_states = {
     .buzzer_state = 1,
     .ivdrip_state = 0,
     .alarm_state = 0,
-    .freq = LED_ON_TIME_S * 1000
+    .freq = LED_ON_TIME_S * S_TO_MS_TIME_CONV
 };
 
 
@@ -79,16 +75,16 @@ void sleep_callback(const struct device *dev, struct gpio_callback *cb, uint32_t
 void freq_up_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	LOG_DBG("Freq Up button pressed.");
-	if (!gpio_pin_get_raw(dev,3)) {
-    	var_led_states.freq = var_led_states.freq - (1000 * DEC_ON_TIME_S);
+	if (!gpio_pin_get_raw(dev,error_led.pin)) {
+    	var_led_states.freq = var_led_states.freq - (S_TO_MS_TIME_CONV * DEC_ON_TIME_S);
     	k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq), K_MSEC(var_led_states.freq));
 	}
 }
 void freq_down_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	LOG_DBG("Freq down button pressed.");
-	if (!gpio_pin_get_raw(dev, 3)){
-		var_led_states.freq = var_led_states.freq + (1000 * INC_ON_TIME_S);
+	if (!gpio_pin_get_raw(dev, error_led.pin)){
+		var_led_states.freq = var_led_states.freq + (S_TO_MS_TIME_CONV * INC_ON_TIME_S);
 		k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
 	}		
 }
@@ -129,6 +125,7 @@ void var_led_toggle(struct k_timer *var_led_timer){
 	}
 }
 void var_led_stop(struct k_timer *var_led_timer){
+	LOG_DBG("Action LEDs turned off.");
 	gpio_pin_set_dt(&buzzer_led, 0);
 	gpio_pin_set_dt(&ivdrip_led, 0);
 	gpio_pin_set_dt(&alarm_led, 0);
@@ -187,21 +184,24 @@ void main(void)
 
 	while (1) {
 		if (var_led_states.freq > LED_MAX_ON_TIME_MS || var_led_states.freq < LED_MIN_ON_TIME_MS){
+			LOG_DBG("Frequency low or high; Action LEDs turned off.");
 			k_timer_stop(&var_led_timer);
 			gpio_pin_set_dt(&error_led, 1);
 		}
 		if (sleep_detected && !sleep_state){
+			LOG_DBG("Sleep activated.");
 			k_timer_stop(&var_led_timer);
 			sleep_detected = 0;
 			sleep_state = 1;
 		}
 		if (sleep_detected && sleep_state){
+			LOG_DBG("Sleep deactivated.");
 			k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
 			sleep_detected=0;
 			sleep_state = 0;
 		}
 		if (reset_detected){
-			var_led_states.freq = LED_ON_TIME_S * 1000;
+			var_led_states.freq = LED_ON_TIME_S * S_TO_MS_TIME_CONV;
 			gpio_pin_set_dt(&error_led, 0);
 			k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
 			reset_detected=0;
