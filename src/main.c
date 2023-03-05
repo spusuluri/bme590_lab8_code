@@ -9,7 +9,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
 
-LOG_MODULE_REGISTER(Lab8_Satya_FIX, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(Lab8_Satya, LOG_LEVEL_DBG);
 
 #define LED_ON_TIME_S 1
 #define HEARTBEAT_PERIOD_MS 1000
@@ -81,14 +81,18 @@ void sleep_callback(const struct device *dev, struct gpio_callback *cb, uint32_t
 void freq_up_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	LOG_DBG("Freq Up button pressed.");
-	var_led_states.freq = var_led_states.freq - (1000 * DEC_ON_TIME_S);
-	k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
+	if (!gpio_pin_get_raw(dev,3)) {
+    	var_led_states.freq = var_led_states.freq - (1000 * DEC_ON_TIME_S);
+    	k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq), K_MSEC(var_led_states.freq));
+	}
 }
 void freq_down_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	LOG_DBG("Freq down button pressed.");
-	var_led_states.freq = var_led_states.freq + (1000 * INC_ON_TIME_S);
-	k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
+	if (!gpio_pin_get_raw(dev, 3)){
+		var_led_states.freq = var_led_states.freq + (1000 * INC_ON_TIME_S);
+		k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
+	}		
 }
 void reset_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
@@ -135,7 +139,7 @@ void var_led_stop(struct k_timer *var_led_timer){
 void main(void)
 {
 	int err;
-
+	gpio_pin_set_dt(&error_led, 0);
 	err = check_interfaces_ready();
 	if (err){
 		LOG_ERR("Device interfaces not ready (err = %d)", err);
@@ -186,12 +190,14 @@ void main(void)
 	while (1) {
 		if (var_led_states.freq > LED_MAX_ON_TIME_MS || var_led_states.freq < LED_MIN_ON_TIME_MS){
 			k_timer_stop(&var_led_timer);
+			gpio_pin_set_dt(&error_led, 1);
 		}
 		if (sleep_detected){
 			sleep_detected = 0;
 		}
 		if (reset_detected){
 			var_led_states.freq = LED_ON_TIME_S * 1000;
+			gpio_pin_set_dt(&error_led, 0);
 			k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
 			reset_detected=0;
 		}
