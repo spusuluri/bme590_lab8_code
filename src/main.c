@@ -1,6 +1,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/drivers/adc.h>
 
 LOG_MODULE_REGISTER(Lab8_Satya, LOG_LEVEL_DBG);
 
@@ -11,6 +12,22 @@ LOG_MODULE_REGISTER(Lab8_Satya, LOG_LEVEL_DBG);
 #define LED_MAX_ON_TIME_MS 2000
 #define LED_MIN_ON_TIME_MS 100
 #define S_TO_MS_TIME_CONV 1000
+
+
+#define ADC_DT_SPEC_GET_BY_ALIAS(node_id)                         \
+    {                                                            \
+        .dev = DEVICE_DT_GET(DT_PARENT(DT_ALIAS(node_id))),        \
+        .channel_id = DT_REG_ADDR(DT_ALIAS(node_id)),            \
+        ADC_CHANNEL_CFG_FROM_DT_NODE(DT_ALIAS(node_id))            \
+    }                                                            \
+
+#define DT_SPEC_AND_COMMA(node_id, prop, idx) \
+	ADC_DT_SPEC_GET_BY_IDX(node_id, idx),
+
+/* ADC channels (specified in DT overlay) */
+static const struct adc_dt_spec adc_reslow = ADC_DT_SPEC_GET_BY_ALIAS(reslow);
+static const struct adc_dt_spec adc_reshigh = ADC_DT_SPEC_GET_BY_ALIAS(reshigh);
+
 
 /*LEDs*/
 static const struct gpio_dt_spec heartbeat_led = GPIO_DT_SPEC_GET(DT_ALIAS(heartbeat), gpios);
@@ -179,10 +196,11 @@ void main(void)
 	gpio_add_callback(reset.port, &reset_cb);
 
 	/* Start timers*/
-	k_timer_start(&heartbeat_timer, K_MSEC(HEARTBEAT_PERIOD_MS), K_MSEC(HEARTBEAT_PERIOD_MS));
-	k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
+k_timer_start(&heartbeat_timer, K_MSEC(HEARTBEAT_PERIOD_MS), K_MSEC(HEARTBEAT_PERIOD_MS));
+k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
 
 	while (1) {
+		k_msleep(1); /* Buf*/
 		if (var_led_states.freq > LED_MAX_ON_TIME_MS || var_led_states.freq < LED_MIN_ON_TIME_MS){
 			LOG_DBG("Frequency low or high; Action LEDs turned off.");
 			k_timer_stop(&var_led_timer);
@@ -210,6 +228,20 @@ void main(void)
 }
 int setup_channels_and_pins(void){
 	int ret;
+
+	/* Setup ADC channels */
+	ret = adc_channel_setup_dt(&adc_reslow);
+	if (ret < 0) {
+		LOG_ERR("Could not setup Res Low ADC channel (%d)", ret);
+		return ret;
+	}
+
+	ret = adc_channel_setup_dt(&adc_reshigh);
+	if (ret < 0) {
+		LOG_ERR("Could not setup Res High ADC channel (%d)", ret);
+		return ret;
+	}
+
 	/* Configure GPIO pins*/
 	ret = gpio_pin_configure_dt(&heartbeat_led, GPIO_OUTPUT_INACTIVE | GPIO_ACTIVE_LOW);
 	if (ret < 0) {
@@ -268,6 +300,11 @@ int check_interfaces_ready(void){
 	/* This should check for the entire gpio1 interface*/
 	if (!device_is_ready(error_led.port)) {
 		LOG_ERR("gpio1 interface not ready.");
+		return -1;
+	}
+	/* This should check ADC channels*/
+	if (!device_is_ready(adc_reslow.dev) || !device_is_ready(adc_reshigh.dev)) {
+		LOG_ERR("ADC controller device(s) not ready");
 		return -1;
 	}
 	return 0;	

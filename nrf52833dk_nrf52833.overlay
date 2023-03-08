@@ -10,8 +10,13 @@
 
 // For more help, browse the DeviceTree documentation at https://docs.zephyrproject.org/latest/guides/dts/index.html
 // You can also visit the nRF DeviceTree extension documentation at https://nrfconnect.github.io/vscode-nrf-connect/devicetree/nrfdevicetree.html
-/{
+/ {
+	zephyr,user {
+		io-channels = <&adc 0>, <&adc 1>;
+	};
     aliases{
+        reslow = &reslow;
+        reshigh = &reshigh;
         heartbeat = &led0;
         buzzer = &led1;
         ivdrip = &led2;
@@ -29,4 +34,28 @@
             label = "ERROR LED";
         };
     };
+};
+&adc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	reslow: channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_5";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN0>; // P0.02
+		zephyr,resolution = <8>;
+	};
+
+	reshigh: channel@1 {
+		reg = <1>;
+		zephyr,gain = "ADC_GAIN_1_5";
+		zephyr,reference = "ADC_REF_VDD_1";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN1>; // P0.03
+		zephyr,resolution = <12>;
+	};
+
+	status = "okay";
 };
