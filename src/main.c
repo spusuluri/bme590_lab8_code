@@ -71,6 +71,7 @@ struct led_state_n_info var_led_states = {
 /* Declarations*/
 int setup_channels_and_pins(void);
 int check_interfaces_ready(void);
+int read_adc(struct adc_dt_spec adc_channel);
 void sleep_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
 void freq_up_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
 void freq_down_callback(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
@@ -198,9 +199,13 @@ void main(void)
 	/* Start timers*/
 k_timer_start(&heartbeat_timer, K_MSEC(HEARTBEAT_PERIOD_MS), K_MSEC(HEARTBEAT_PERIOD_MS));
 k_timer_start(&var_led_timer, K_MSEC(var_led_states.freq),K_MSEC(var_led_states.freq));
+	int ret_mv_low;
+	int ret_mv_high;
+	// ret_mv_low = read_adc(adc_reslow);
+	// ret_mv_high = read_adc(adc_reshigh);
 
 	while (1) {
-		k_msleep(1); /* Buf*/
+		k_msleep(1); /* Buffer for Logging to Occur*/
 		if (var_led_states.freq > LED_MAX_ON_TIME_MS || var_led_states.freq < LED_MIN_ON_TIME_MS){
 			LOG_DBG("Frequency low or high; Action LEDs turned off.");
 			k_timer_stop(&var_led_timer);
@@ -308,4 +313,37 @@ int check_interfaces_ready(void){
 		return -1;
 	}
 	return 0;	
+}
+
+int read_adc(struct adc_dt_spec adc_channel)
+{
+	int16_t buf;
+	int32_t val_mv;
+	int ret;
+
+	struct adc_sequence sequence = {
+		.buffer = &buf,
+		.buffer_size = sizeof(buf), // bytes
+	};
+
+	LOG_INF("Measuring %s (channel %d)... ", adc_channel.dev->name, adc_channel.channel_id);
+
+	(void)adc_sequence_init_dt(&adc_channel, &sequence);
+
+	ret = adc_read(adc_channel.dev, &sequence);
+	if (ret < 0) {
+		LOG_ERR("Could not read (%d)", ret);
+	} else {
+		LOG_DBG("Raw ADC Buffer: %d", buf);
+	}
+
+	val_mv = buf;
+	ret = adc_raw_to_millivolts_dt(&adc_channel, &val_mv);
+	if (ret < 0) {
+		LOG_WRN("Buffer cannot be converted to mV; returning raw buffer value.");
+		return buf;
+	} else {
+		LOG_INF("ADC Value (mV): %d", val_mv);
+		return val_mv;
+	}
 }
